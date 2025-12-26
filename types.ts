@@ -1,7 +1,7 @@
 
-export type PokemonType = 
-  | 'normal' | 'fire' | 'water' | 'electric' | 'grass' | 'ice' 
-  | 'fighting' | 'poison' | 'ground' | 'flying' | 'psychic' | 'bug' 
+export type PokemonType =
+  | 'normal' | 'fire' | 'water' | 'electric' | 'grass' | 'ice'
+  | 'fighting' | 'poison' | 'ground' | 'flying' | 'psychic' | 'bug'
   | 'rock' | 'ghost' | 'dragon' | 'dark' | 'steel' | 'fairy';
 
 export interface PokemonData {
@@ -19,4 +19,4 @@ export interface GymLeader {
   image: string;
 }
 
-export type AppView = 'pokedex' | 'party' | 'gym';
+export type AppView = 'pokedex' | 'party' | 'gym' | 'camera';

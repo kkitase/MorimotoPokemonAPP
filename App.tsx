@@ -3,8 +3,9 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import TypeBadge from './components/TypeBadge';
 import { AppView, PokemonType, PokemonData } from './types';
+import ImagePicker from './components/ImagePicker';
 import { fetchPokemon } from './services/pokeapi';
-import { getAIStrategyAdvice } from './services/gemini';
+import { getAIStrategyAdvice, analyzeImage } from './services/gemini';
 import { TYPE_CHART, TYPE_NAME_JP, GYM_LEADERS } from './constants';
 
 const App: React.FC = () => {
@@ -23,6 +24,11 @@ const App: React.FC = () => {
   const [aiAdvice, setAiAdvice] = useState<string>('');
   const [isAdviceLoading, setIsAdviceLoading] = useState(false);
 
+  // Camera Analysis State
+  const [cameraImage, setCameraImage] = useState<string | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<string>('');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
   // Initial Search
   useEffect(() => {
     handleSearch();
@@ -40,7 +46,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const counts: Record<string, number> = {};
     const activePartyTypes = party.filter(p => p !== null) as PokemonType[];
-    
+
     if (activePartyTypes.length === 0) {
       setPartyWeaknesses({} as any);
       return;
@@ -73,13 +79,24 @@ const App: React.FC = () => {
     return Math.floor(score);
   };
 
+  const handleImageSelected = async (uri: string) => {
+    setCameraImage(uri);
+    setAnalysisResult('');
+    setIsAnalyzing(true);
+
+    // Auto start analysis
+    const result = await analyzeImage(uri);
+    setAnalysisResult(result || "解析できませんでした。");
+    setIsAnalyzing(false);
+  };
+
   return (
     <div className="flex flex-col lg:flex-row h-screen overflow-hidden">
       <Sidebar currentView={view} setView={setView} />
-      
+
       <main className="flex-1 overflow-y-auto p-4 lg:p-8 bg-gray-50">
         <div className="max-w-4xl mx-auto">
-          
+
           {/* VIEW: POKEDEX */}
           {view === 'pokedex' && (
             <div className="space-y-6">
@@ -111,8 +128,8 @@ const App: React.FC = () => {
               {searchResult && !loading && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                   <div className="bg-white p-8 rounded-3xl shadow-md border border-gray-100 flex flex-col items-center">
-                    <img 
-                      src={searchResult.sprite} 
+                    <img
+                      src={searchResult.sprite}
                       alt={searchResult.name}
                       className="w-64 h-64 object-contain drop-shadow-2xl"
                     />
@@ -138,7 +155,7 @@ const App: React.FC = () => {
                             <span className="font-black text-gray-800">{s.value}</span>
                           </div>
                           <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
-                            <div 
+                            <div
                               className={`h-full rounded-full transition-all duration-1000 ${s.value > 100 ? 'bg-green-500' : s.value > 60 ? 'bg-yellow-500' : 'bg-red-500'}`}
                               style={{ width: `${Math.min(100, (s.value / 255) * 100)}%` }}
                             />
@@ -185,9 +202,9 @@ const App: React.FC = () => {
               <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
                 <h3 className="text-xl font-bold mb-6">弱点分析結果</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {Object.entries(partyWeaknesses).sort((a,b) => b[1] - a[1]).map(([type, count]) => (
-                    <div 
-                      key={type} 
+                  {Object.entries(partyWeaknesses).sort((a, b) => b[1] - a[1]).map(([type, count]) => (
+                    <div
+                      key={type}
                       className={`flex items-center justify-between p-4 rounded-2xl border-l-4 ${count >= 3 ? 'bg-red-50 border-red-500' : 'bg-gray-50 border-gray-200'}`}
                     >
                       <TypeBadge type={type as PokemonType} />
@@ -233,9 +250,8 @@ const App: React.FC = () => {
                         <button
                           key={gym.name}
                           onClick={() => setSelectedGym(gym)}
-                          className={`flex items-center justify-between p-3 rounded-xl transition-all border ${
-                            selectedGym.name === gym.name ? 'border-red-500 bg-red-50' : 'border-gray-100 hover:border-gray-300'
-                          }`}
+                          className={`flex items-center justify-between p-3 rounded-xl transition-all border ${selectedGym.name === gym.name ? 'border-red-500 bg-red-50' : 'border-gray-100 hover:border-gray-300'
+                            }`}
                         >
                           <div className="text-left">
                             <p className="text-xs font-bold text-gray-400">{gym.title}</p>
@@ -275,7 +291,7 @@ const App: React.FC = () => {
                     <p className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-2">勝率期待度</p>
                     <div className="text-7xl font-black text-gray-900 mb-2">{calculateWinProbability()}%</div>
                     <div className="w-full bg-gray-100 h-4 rounded-full overflow-hidden mb-6">
-                      <div 
+                      <div
                         className="h-full bg-gradient-to-r from-red-500 to-orange-500 transition-all duration-1000"
                         style={{ width: `${calculateWinProbability()}%` }}
                       />
@@ -296,11 +312,60 @@ const App: React.FC = () => {
                       </div>
                     </div>
                   )}
-                  
+
                   {isAdviceLoading && (
                     <div className="bg-gray-100 p-8 rounded-3xl animate-pulse flex flex-col items-center gap-4">
                       <div className="w-12 h-12 border-4 border-gray-300 border-t-red-500 rounded-full animate-spin"></div>
                       <p className="text-gray-500 font-bold">Gemini 3 が分析を生成しています...</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* VIEW: CAMERA ANALYSIS */}
+          {view === 'camera' && (
+            <div className="space-y-8">
+              <header>
+                <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">AIカメラ診断</h2>
+                <p className="text-gray-500 mt-1">バトル画面を撮影して、その場でアドバイスを取得</p>
+              </header>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                <div className="space-y-6">
+                  <ImagePicker
+                    onImageSelected={handleImageSelected}
+                    selectedImage={cameraImage}
+                  />
+                </div>
+
+                <div className="space-y-6">
+                  {analysisResult ? (
+                    <div className="bg-gradient-to-br from-gray-900 to-black p-8 rounded-3xl text-white shadow-2xl animate-in zoom-in duration-300 border border-gray-700">
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className="bg-red-600 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider">LIVE ANALYSIS</span>
+                        <h4 className="font-bold text-lg">AI戦術アドバイス</h4>
+                      </div>
+                      <div className="text-sm leading-relaxed whitespace-pre-wrap opacity-90 font-medium">
+                        {analysisResult}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="h-full min-h-[300px] border-4 border-dashed border-gray-200 rounded-[2.5rem] flex items-center justify-center p-8 text-center text-gray-400 bg-white">
+                      {isAnalyzing ? (
+                        <div className="flex flex-col items-center gap-4">
+                          <div className="w-16 h-16 border-4 border-gray-200 border-t-red-600 rounded-full animate-spin"></div>
+                          <p className="font-bold text-gray-600 animate-pulse">画像を解析中...</p>
+                          <p className="text-xs">状況を判断しています</p>
+                        </div>
+                      ) : (
+                        <div>
+                          <span className="text-6xl block mb-4 filter grayscale opacity-50">📸</span>
+                          <p className="font-bold text-lg">写真をアップロードしてください</p>
+                          <p className="text-sm mt-2">バトル画面やステータス画面に対応しています</p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
