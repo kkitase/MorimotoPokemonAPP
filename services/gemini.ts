@@ -3,7 +3,7 @@ import { GoogleGenAI } from "@google/genai";
 import { PokemonType } from "../types";
 import { TYPE_NAME_JP } from "../constants";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
 export const getAIStrategyAdvice = async (enemyType: PokemonType, playerTypes: PokemonType[]) => {
   try {
